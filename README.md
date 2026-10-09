@@ -6,8 +6,25 @@ Sem dependências além do `parking_lot` (locks com guards "owned", necessários
 ```bash
 cargo run --release -- meu.db            # REPL
 cargo run --release -- meu.db demo.sql   # executa um script, mostrando tempos
-cargo test                               # 45 testes (inclui estresse de concorrência e recuperação)
+cargo test                               # 52 testes (inclui estresse de concorrência e recuperação)
+cargo doc --no-deps --open               # referência de API (todo item público é documentado)
 ```
+
+## Documentação
+
+Tudo está em [`docs/`](docs/README.md), com modelos profissionais para cada finalidade:
+
+| Quero... | Leia |
+|---|---|
+| **começar** | [Primeiros passos](docs/guides/getting-started.md) · [Referência da CLI](docs/reference/cli.md) |
+| **usar o SQL** | [Referência de SQL](docs/reference/sql.md) · [Ajuste de consultas (`EXPLAIN`)](docs/guides/query-tuning.md) |
+| **embutir em Rust** | [Guia da API](docs/guides/embedding-api.md) · [Transações e concorrência](docs/guides/concurrency-and-transactions.md) |
+| **entender a arquitetura** | [arc42](docs/architecture/arc42.md) · [diagramas C4](docs/architecture/c4.md) · [cenários de execução](docs/architecture/runtime-scenarios.md) |
+| **saber por que é assim** | [15 decisões (ADRs)](docs/adr/README.md) |
+| **estudar um módulo** | [referência por módulo](docs/modules/README.md) |
+| **operar / diagnosticar** | [Runbook](docs/guides/operations-runbook.md) · [Erros](docs/reference/errors.md) · [Configuração](docs/reference/configuration.md) |
+| **ver os bytes em disco** | [Formatos de armazenamento](docs/reference/storage-formats.md) (`cargo run --example storage_dump`) |
+| **contribuir** | [CONTRIBUTING](CONTRIBUTING.md) · [Testes](docs/development/testing.md) · [Convenções](docs/development/conventions.md) · [CHANGELOG](CHANGELOG.md) |
 
 ## Camadas
 
