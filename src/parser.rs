@@ -4,9 +4,27 @@
 use crate::ast::*;
 use crate::error::{Error, Result};
 use crate::lexer::{tokenize, Token};
+use crate::sched::Priority;
 use crate::schema::Column;
 use crate::value::{DataType, Value};
 
+/// Interpreta um texto com um ou mais comandos separados por `;`.
+///
+/// Identificadores são normalizados para minúsculas; palavras-chave não diferenciam
+/// maiúsculas de minúsculas.
+///
+/// # Errors
+/// `Error::Parse` com a descrição do primeiro problema encontrado.
+///
+/// # Exemplo
+/// ```
+/// use rustysql::{ast::Statement, parser::parse};
+///
+/// let stmts = parse("BEGIN; SELECT 1 + 1 FROM t; COMMIT").unwrap();
+/// assert_eq!(stmts.len(), 3);
+/// assert!(matches!(stmts[0], Statement::Begin));
+/// assert!(parse("SELEC * FROM t").is_err());
+/// ```
 pub fn parse(sql: &str) -> Result<Vec<Statement>> {
     let mut p = Parser { toks: tokenize(sql)?, pos: 0 };
     let mut stmts = Vec::new();
@@ -23,6 +41,11 @@ pub fn parse(sql: &str) -> Result<Vec<Statement>> {
     Ok(stmts)
 }
 
+const RESERVED: &[&str] = &[
+    "select", "from", "where", "group", "order", "by", "having", "limit", "offset", "join",
+    "inner", "left", "outer", "on", "set", "values", "and", "or", "not", "as", "union",
+];
+
 struct Parser {
     toks: Vec<Token>,
     pos: usize,
@@ -31,6 +54,10 @@ struct Parser {
 impl Parser {
     fn peek(&self) -> Option<&Token> {
         self.toks.get(self.pos)
+    }
+
+    fn peek_at(&self, n: usize) -> Option<&Token> {
+        self.toks.get(self.pos + n)
     }
 
     fn next(&mut self) -> Option<Token> {
@@ -58,8 +85,12 @@ impl Parser {
         }
     }
 
+    fn kw_at(&self, n: usize, kw: &str) -> bool {
+        matches!(self.peek_at(n), Some(Token::Ident(s)) if s.eq_ignore_ascii_case(kw))
+    }
+
     fn peek_kw(&self, kw: &str) -> bool {
-        matches!(self.peek(), Some(Token::Ident(s)) if s.eq_ignore_ascii_case(kw))
+        self.kw_at(0, kw)
     }
 
     fn eat_kw(&mut self, kw: &str) -> bool {
@@ -86,27 +117,73 @@ impl Parser {
         }
     }
 
+    /// Identificador que pode ser um alias (não pode ser palavra reservada).
+    fn peek_alias(&self) -> bool {
+        matches!(self.peek(), Some(Token::Ident(s)) if !RESERVED.contains(&s.to_ascii_lowercase().as_str()))
+    }
+
     // ---- comandos -------------------------------------------------------
 
     fn statement(&mut self) -> Result<Statement> {
+        if self.eat_kw("EXPLAIN") {
+            return Ok(Statement::Explain(Box::new(self.statement()?)));
+        }
         if self.eat_kw("CREATE") {
-            self.create_table()
+            self.create()
         } else if self.eat_kw("DROP") {
-            self.expect_kw("TABLE")?;
-            Ok(Statement::DropTable { name: self.ident()? })
+            if self.eat_kw("TABLE") {
+                Ok(Statement::DropTable { name: self.ident()? })
+            } else {
+                self.expect_kw("INDEX")?;
+                Ok(Statement::DropIndex { name: self.ident()? })
+            }
         } else if self.eat_kw("INSERT") {
             self.insert()
         } else if self.eat_kw("SELECT") {
-            self.select()
+            Ok(Statement::Select(Box::new(self.select()?)))
         } else if self.eat_kw("UPDATE") {
             self.update()
         } else if self.eat_kw("DELETE") {
             self.expect_kw("FROM")?;
             let table = self.ident()?;
             Ok(Statement::Delete { table, filter: self.where_clause()? })
+        } else if self.eat_kw("BEGIN") {
+            if !self.eat_kw("TRANSACTION") {
+                self.eat_kw("WORK");
+            }
+            Ok(Statement::Begin)
+        } else if self.eat_kw("COMMIT") {
+            Ok(Statement::Commit)
+        } else if self.eat_kw("ROLLBACK") {
+            Ok(Statement::Rollback)
+        } else if self.eat_kw("CHECKPOINT") {
+            Ok(Statement::Checkpoint)
+        } else if self.eat_kw("SET") {
+            self.expect_kw("PRIORITY")?;
+            let name = self.ident()?;
+            Priority::parse(&name)
+                .map(Statement::SetPriority)
+                .ok_or_else(|| Error::parse(format!("prioridade desconhecida '{name}' (use LOW, NORMAL ou HIGH)")))
         } else {
             Err(Error::parse(format!("comando desconhecido: {:?}", self.peek())))
         }
+    }
+
+    fn create(&mut self) -> Result<Statement> {
+        let unique = self.eat_kw("UNIQUE");
+        if self.eat_kw("INDEX") {
+            let name = self.ident()?;
+            self.expect_kw("ON")?;
+            let table = self.ident()?;
+            self.expect(Token::LParen)?;
+            let column = self.ident()?;
+            self.expect(Token::RParen)?;
+            return Ok(Statement::CreateIndex { name, table, column, unique });
+        }
+        if unique {
+            return Err(Error::parse("UNIQUE só vale para CREATE INDEX"));
+        }
+        self.create_table()
     }
 
     fn create_table(&mut self) -> Result<Statement> {
@@ -179,41 +256,93 @@ impl Parser {
         Ok(Statement::Insert { table, columns, rows })
     }
 
-    fn select(&mut self) -> Result<Statement> {
+    fn table_ref(&mut self) -> Result<TableRef> {
+        let name = self.ident()?;
+        let alias = if self.eat_kw("AS") || self.peek_alias() { Some(self.ident()?) } else { None };
+        Ok(TableRef { name, alias })
+    }
+
+    fn select(&mut self) -> Result<SelectStmt> {
         let mut items = Vec::new();
         loop {
             items.push(if self.eat(&Token::Star) {
                 SelectItem::Star
+            } else if matches!(self.peek(), Some(Token::Ident(_)))
+                && self.peek_at(1) == Some(&Token::Dot)
+                && self.peek_at(2) == Some(&Token::Star)
+            {
+                let t = self.ident()?;
+                self.pos += 2;
+                SelectItem::QualifiedStar(t)
             } else {
-                SelectItem::Expr(self.expr()?)
+                let expr = self.expr()?;
+                let alias = if self.eat_kw("AS") { Some(self.ident()?) } else { None };
+                SelectItem::Expr { expr, alias }
             });
             if !self.eat(&Token::Comma) {
                 break;
             }
         }
         self.expect_kw("FROM")?;
-        let table = self.ident()?;
-        let filter = self.where_clause()?;
-        let mut order_by = None;
-        if self.eat_kw("ORDER") {
-            self.expect_kw("BY")?;
-            let col = self.ident()?;
-            let desc = if self.eat_kw("DESC") {
-                true
+        let from = self.table_ref()?;
+
+        let mut joins = Vec::new();
+        loop {
+            let kind = if self.eat_kw("LEFT") {
+                self.eat_kw("OUTER");
+                JoinKind::Left
+            } else if self.eat_kw("INNER") || self.peek_kw("JOIN") {
+                JoinKind::Inner
             } else {
-                self.eat_kw("ASC");
-                false
+                break;
             };
-            order_by = Some((col, desc));
+            self.expect_kw("JOIN")?;
+            let table = self.table_ref()?;
+            self.expect_kw("ON")?;
+            joins.push(Join { kind, table, on: self.expr()? });
         }
-        let mut limit = None;
-        if self.eat_kw("LIMIT") {
-            match self.next() {
-                Some(Token::Int(n)) if n >= 0 => limit = Some(n as usize),
-                other => return Err(Error::parse(format!("LIMIT inválido: {other:?}"))),
+
+        let filter = self.where_clause()?;
+        let mut group_by = Vec::new();
+        if self.eat_kw("GROUP") {
+            self.expect_kw("BY")?;
+            group_by.push(self.expr()?);
+            while self.eat(&Token::Comma) {
+                group_by.push(self.expr()?);
             }
         }
-        Ok(Statement::Select { table, items, filter, order_by, limit })
+        let having = if self.eat_kw("HAVING") { Some(self.expr()?) } else { None };
+
+        let mut order_by = Vec::new();
+        if self.eat_kw("ORDER") {
+            self.expect_kw("BY")?;
+            loop {
+                let e = self.expr()?;
+                let desc = if self.eat_kw("DESC") {
+                    true
+                } else {
+                    self.eat_kw("ASC");
+                    false
+                };
+                order_by.push((e, desc));
+                if !self.eat(&Token::Comma) {
+                    break;
+                }
+            }
+        }
+
+        let (mut limit, mut offset) = (None, 0usize);
+        let number = |p: &mut Parser, what: &str| match p.next() {
+            Some(Token::Int(n)) if n >= 0 => Ok(n as usize),
+            other => Err(Error::parse(format!("{what} inválido: {other:?}"))),
+        };
+        if self.eat_kw("LIMIT") {
+            limit = Some(number(self, "LIMIT")?);
+        }
+        if self.eat_kw("OFFSET") {
+            offset = number(self, "OFFSET")?;
+        }
+        Ok(SelectStmt { items, from, joins, filter, group_by, having, order_by, limit, offset })
     }
 
     fn update(&mut self) -> Result<Statement> {
@@ -239,13 +368,12 @@ impl Parser {
         }
     }
 
-    // ---- expressões (precedência: OR < AND < NOT < comparação < +- < */) --
+    // ---- expressões (OR < AND < NOT < comparação < +- < */ < unário) ----
 
     fn expr(&mut self) -> Result<Expr> {
         let mut left = self.and_expr()?;
         while self.eat_kw("OR") {
-            let right = self.and_expr()?;
-            left = Expr::Binary { op: BinOp::Or, left: Box::new(left), right: Box::new(right) };
+            left = Expr::binary(BinOp::Or, left, self.and_expr()?);
         }
         Ok(left)
     }
@@ -253,8 +381,7 @@ impl Parser {
     fn and_expr(&mut self) -> Result<Expr> {
         let mut left = self.not_expr()?;
         while self.eat_kw("AND") {
-            let right = self.not_expr()?;
-            left = Expr::Binary { op: BinOp::And, left: Box::new(left), right: Box::new(right) };
+            left = Expr::binary(BinOp::And, left, self.not_expr()?);
         }
         Ok(left)
     }
@@ -274,6 +401,46 @@ impl Parser {
             self.expect_kw("NULL")?;
             return Ok(Expr::IsNull { expr: Box::new(left), negated });
         }
+
+        let negated = self.peek_kw("NOT")
+            && (self.kw_at(1, "BETWEEN") || self.kw_at(1, "IN") || self.kw_at(1, "LIKE"));
+        if negated {
+            self.pos += 1;
+        }
+        let wrap = |e: Expr| if negated { Expr::Unary { op: UnOp::Not, expr: Box::new(e) } } else { e };
+
+        if self.eat_kw("BETWEEN") {
+            let lo = self.additive()?;
+            self.expect_kw("AND")?;
+            let hi = self.additive()?;
+            let both = Expr::binary(
+                BinOp::And,
+                Expr::binary(BinOp::Ge, left.clone(), lo),
+                Expr::binary(BinOp::Le, left, hi),
+            );
+            return Ok(wrap(both));
+        }
+        if self.eat_kw("IN") {
+            self.expect(Token::LParen)?;
+            let mut any: Option<Expr> = None;
+            loop {
+                let eq = Expr::binary(BinOp::Eq, left.clone(), self.additive()?);
+                any = Some(match any {
+                    None => eq,
+                    Some(a) => Expr::binary(BinOp::Or, a, eq),
+                });
+                if !self.eat(&Token::Comma) {
+                    break;
+                }
+            }
+            self.expect(Token::RParen)?;
+            return Ok(wrap(any.unwrap()));
+        }
+        if self.eat_kw("LIKE") {
+            let pattern = self.additive()?;
+            return Ok(wrap(Expr::Like { expr: Box::new(left), pattern: Box::new(pattern), negated: false }));
+        }
+
         let op = match self.peek() {
             Some(Token::Eq) => BinOp::Eq,
             Some(Token::Ne) => BinOp::Ne,
@@ -284,8 +451,7 @@ impl Parser {
             _ => return Ok(left),
         };
         self.pos += 1;
-        let right = self.additive()?;
-        Ok(Expr::Binary { op, left: Box::new(left), right: Box::new(right) })
+        Ok(Expr::binary(op, left, self.additive()?))
     }
 
     fn additive(&mut self) -> Result<Expr> {
@@ -297,8 +463,7 @@ impl Parser {
                 _ => return Ok(left),
             };
             self.pos += 1;
-            let right = self.multiplicative()?;
-            left = Expr::Binary { op, left: Box::new(left), right: Box::new(right) };
+            left = Expr::binary(op, left, self.multiplicative()?);
         }
     }
 
@@ -308,11 +473,11 @@ impl Parser {
             let op = match self.peek() {
                 Some(Token::Star) => BinOp::Mul,
                 Some(Token::Slash) => BinOp::Div,
+                Some(Token::Percent) => BinOp::Mod,
                 _ => return Ok(left),
             };
             self.pos += 1;
-            let right = self.unary()?;
-            left = Expr::Binary { op, left: Box::new(left), right: Box::new(right) };
+            left = Expr::binary(op, left, self.unary()?);
         }
     }
 
@@ -334,13 +499,48 @@ impl Parser {
                 self.expect(Token::RParen)?;
                 Ok(e)
             }
-            Some(Token::Ident(s)) => Ok(match s.to_ascii_uppercase().as_str() {
-                "TRUE" => Expr::Lit(Value::Bool(true)),
-                "FALSE" => Expr::Lit(Value::Bool(false)),
-                "NULL" => Expr::Lit(Value::Null),
-                _ => Expr::Col(s.to_ascii_lowercase()),
-            }),
+            Some(Token::Ident(s)) => {
+                let lower = s.to_ascii_lowercase();
+                match lower.as_str() {
+                    "true" => return Ok(Expr::Lit(Value::Bool(true))),
+                    "false" => return Ok(Expr::Lit(Value::Bool(false))),
+                    "null" => return Ok(Expr::Lit(Value::Null)),
+                    _ => {}
+                }
+                if self.peek() == Some(&Token::LParen) {
+                    return self.aggregate(&lower);
+                }
+                if self.eat(&Token::Dot) {
+                    return Ok(Expr::Col { table: Some(lower), name: self.ident()? });
+                }
+                Ok(Expr::Col { table: None, name: lower })
+            }
             other => Err(Error::parse(format!("expressão inválida perto de {other:?}"))),
         }
+    }
+
+    fn aggregate(&mut self, name: &str) -> Result<Expr> {
+        let func = match name {
+            "count" => AggFunc::Count,
+            "sum" => AggFunc::Sum,
+            "avg" => AggFunc::Avg,
+            "min" => AggFunc::Min,
+            "max" => AggFunc::Max,
+            other => return Err(Error::parse(format!("função desconhecida '{other}'"))),
+        };
+        self.expect(Token::LParen)?;
+        if self.peek_kw("DISTINCT") {
+            return Err(Error::parse("DISTINCT em agregações não é suportado"));
+        }
+        let arg = if self.eat(&Token::Star) {
+            if func != AggFunc::Count {
+                return Err(Error::parse(format!("{name}(*) não existe")));
+            }
+            None
+        } else {
+            Some(Box::new(self.expr()?))
+        };
+        self.expect(Token::RParen)?;
+        Ok(Expr::Agg { func, arg })
     }
 }

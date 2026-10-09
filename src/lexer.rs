@@ -2,28 +2,55 @@
 
 use crate::error::{Error, Result};
 
+/// Unidade léxica do SQL.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
+    /// Identificador ou palavra-chave (a distinção é feita pelo parser).
     Ident(String),
+    /// Literal inteiro.
     Int(i64),
+    /// Literal decimal (`1.5`).
     Float(f64),
+    /// Literal de texto entre aspas simples (`''` escapa uma aspa).
     Str(String),
+    /// `(`
     LParen,
+    /// `)`
     RParen,
+    /// `,`
     Comma,
+    /// `.`
+    Dot,
+    /// `;`
     Semi,
+    /// `*`
     Star,
+    /// `+`
     Plus,
+    /// `-`
     Minus,
+    /// `/`
     Slash,
+    /// `%`
+    Percent,
+    /// `=`
     Eq,
+    /// `<>` ou `!=`
     Ne,
+    /// `<`
     Lt,
+    /// `<=`
     Le,
+    /// `>`
     Gt,
+    /// `>=`
     Ge,
 }
 
+/// Quebra o texto SQL em tokens. Ignora espaços e comentários `-- ...`.
+///
+/// # Errors
+/// `Error::Parse` para string sem fechar, número inválido ou caractere desconhecido.
 pub fn tokenize(input: &str) -> Result<Vec<Token>> {
     let chars: Vec<char> = input.chars().collect();
     let mut i = 0;
@@ -42,11 +69,13 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>> {
             '(' => { out.push(Token::LParen); i += 1 }
             ')' => { out.push(Token::RParen); i += 1 }
             ',' => { out.push(Token::Comma); i += 1 }
+            '.' => { out.push(Token::Dot); i += 1 }
             ';' => { out.push(Token::Semi); i += 1 }
             '*' => { out.push(Token::Star); i += 1 }
             '+' => { out.push(Token::Plus); i += 1 }
             '-' => { out.push(Token::Minus); i += 1 }
             '/' => { out.push(Token::Slash); i += 1 }
+            '%' => { out.push(Token::Percent); i += 1 }
             '=' => { out.push(Token::Eq); i += 1 }
             '!' if next == Some('=') => { out.push(Token::Ne); i += 2 }
             '<' if next == Some('>') => { out.push(Token::Ne); i += 2 }

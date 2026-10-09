@@ -3,24 +3,33 @@
 use crate::error::{Error, Result};
 use crate::value::DataType;
 
+/// Definição de uma coluna.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Column {
+    /// Nome, em minúsculas.
     pub name: String,
+    /// Tipo.
     pub ty: DataType,
+    /// Rejeita `NULL` (sempre verdadeiro na chave primária).
     pub not_null: bool,
+    /// É a chave primária da tabela.
     pub primary_key: bool,
 }
 
+/// Esquema de uma tabela: as colunas, na ordem.
 #[derive(Debug, Clone, Default)]
 pub struct Schema {
+    /// As colunas.
     pub columns: Vec<Column>,
 }
 
 impl Schema {
+    /// Posição da coluna com esse nome.
     pub fn index(&self, name: &str) -> Option<usize> {
         self.columns.iter().position(|c| c.name == name)
     }
 
+    /// Posição da coluna que é chave primária, se houver.
     pub fn primary_key(&self) -> Option<usize> {
         self.columns.iter().position(|c| c.primary_key)
     }
@@ -34,6 +43,10 @@ impl Schema {
             .join(";")
     }
 
+    /// Lê o texto produzido por [`Schema::serialize`].
+    ///
+    /// # Errors
+    /// `Error::Storage` se o texto está malformado (catálogo corrompido).
     pub fn deserialize(s: &str) -> Result<Self> {
         let bad = || Error::storage("esquema corrompido no catálogo");
         let mut columns = Vec::new();

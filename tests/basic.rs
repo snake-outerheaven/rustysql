@@ -55,7 +55,7 @@ fn constraints() {
 fn persistence_and_many_pages() {
     let path = temp_db("persist");
     {
-        let mut db = Database::open(&path).unwrap();
+        let db = Database::open(&path).unwrap();
         db.run("CREATE TABLE big (id INT PRIMARY KEY, txt TEXT)").unwrap();
         for i in 0..500 {
             db.run(&format!("INSERT INTO big VALUES ({i}, 'linha numero {i} com algum texto')")).unwrap();

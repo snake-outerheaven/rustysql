@@ -4,15 +4,21 @@ use crate::error::{Error, Result};
 use std::cmp::Ordering;
 use std::fmt;
 
+/// Tipos de coluna suportados.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DataType {
+    /// Inteiro de 64 bits com sinal (`INT`, `INTEGER`, `BIGINT`).
     Int,
+    /// Ponto flutuante de 64 bits (`FLOAT`, `REAL`, `DOUBLE`).
     Float,
+    /// Texto UTF-8 (`TEXT`, `VARCHAR`, `STRING`). O tamanho em `VARCHAR(n)` é ignorado.
     Text,
+    /// Booleano (`BOOL`, `BOOLEAN`).
     Bool,
 }
 
 impl DataType {
+    /// Nome canônico em maiúsculas.
     pub fn name(self) -> &'static str {
         match self {
             DataType::Int => "INT",
@@ -22,6 +28,7 @@ impl DataType {
         }
     }
 
+    /// Interpreta o nome de um tipo (sem diferenciar maiúsculas); `None` se desconhecido.
     pub fn parse(s: &str) -> Option<Self> {
         match s.to_ascii_uppercase().as_str() {
             "INT" | "INTEGER" | "BIGINT" => Some(DataType::Int),
@@ -33,15 +40,22 @@ impl DataType {
     }
 }
 
+/// Um valor SQL.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
+    /// Ausência de valor. Em comparações dá sempre "desconhecido", nunca verdadeiro.
     Null,
+    /// Inteiro.
     Int(i64),
+    /// Decimal.
     Float(f64),
+    /// Texto.
     Text(String),
+    /// Booleano.
     Bool(bool),
 }
 
+/// Uma linha: um valor por coluna, na ordem do esquema.
 pub type Row = Vec<Value>;
 
 impl Value {
@@ -91,6 +105,8 @@ const TAG_FLOAT: u8 = 2;
 const TAG_TEXT: u8 = 3;
 const TAG_BOOL: u8 = 4;
 
+/// Serializa uma linha: para cada valor, um byte de tag seguido do conteúdo (`Int` e `Float`
+/// com 8 bytes little-endian; `Text` com tamanho `u32` e bytes UTF-8; `Bool` com 1 byte).
 pub fn encode_row(row: &[Value]) -> Vec<u8> {
     let mut out = Vec::new();
     for v in row {
@@ -118,6 +134,10 @@ pub fn encode_row(row: &[Value]) -> Vec<u8> {
     out
 }
 
+/// Lê uma linha serializada por [`encode_row`].
+///
+/// # Errors
+/// `Error::Storage` se o buffer está truncado, tem uma tag desconhecida ou texto inválido.
 pub fn decode_row(mut buf: &[u8]) -> Result<Row> {
     fn take<'a>(buf: &mut &'a [u8], n: usize) -> Result<&'a [u8]> {
         if buf.len() < n {
