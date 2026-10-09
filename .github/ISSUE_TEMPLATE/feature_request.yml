@@ -1,0 +1,36 @@
+name: Sugerir uma funcionalidade
+description: Uma ideia para o SQL, o motor ou a documentação
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        O rustysql é um projeto **para aprender**: boas ideias são as que ensinam algo e cabem no código.
+        Veja antes a lista de [limites conhecidos](https://github.com/snake-outerheaven/rustysql#limites-conhecidos)
+        e as [dívidas técnicas](https://github.com/snake-outerheaven/rustysql/blob/master/docs/architecture/arc42.md#11-riscos-e-dívida-técnica).
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qual problema isto resolve?
+      description: O que você tentou fazer e não conseguiu.
+    validations:
+      required: true
+  - type: textarea
+    id: proposta
+    attributes:
+      label: Como deveria funcionar?
+      description: Se for SQL, mostre exemplos de entrada e saída.
+      render: sql
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options: ["SQL (parser, planejador, executor)", "Armazenamento (heap, B-tree, WAL)", "Concorrência (locks, prioridade)", "CLI", "Documentação", "Outra"]
+    validations:
+      required: true
+  - type: checkboxes
+    id: ajuda
+    attributes:
+      label: Participação
+      options:
+        - label: Posso tentar implementar (abro um PR)

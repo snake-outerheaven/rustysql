@@ -115,7 +115,7 @@ fechado limpamente perde os commits que ainda estão só no `.wal`.
 
 | Item | Valor |
 |---|---|
-| Edição | 2024 (Rust ≥ 1.85) |
+| Edição / versão mínima | 2024 / **Rust 1.88** (`rust-version` no `Cargo.toml`; o código usa *let chains*) |
 | Dependências | `parking_lot` 0.12 (`arc_lock`, `send_guard`) |
 | *Features* | nenhuma |
 | Perfil de testes | `cargo test` (debug); para estresse use `cargo test --release` |

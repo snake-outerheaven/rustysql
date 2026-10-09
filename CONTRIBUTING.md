@@ -20,7 +20,7 @@ cargo test                 # deve passar tudo (52 testes)
 cargo run --release -- demo.db demo.sql   # um passeio rápido
 ```
 
-Requisitos: **Rust 1.85+** (edição 2024). Para o verificador de documentação, Python 3.
+Requisitos: **Rust 1.88+** (edição 2024; o código usa *let chains*). Para o verificador de documentação, Python 3.
 
 ## O fluxo
 

@@ -5,7 +5,7 @@ que o banco fez por baixo.
 
 ## Pré-requisitos
 
-* **Rust 1.85 ou mais novo** (edição 2024): <https://rustup.rs>
+* **Rust 1.88 ou mais novo** (edição 2024): <https://rustup.rs>
 * Nada mais: o projeto tem uma única dependência (`parking_lot`), baixada pelo Cargo.
 
 ```bash

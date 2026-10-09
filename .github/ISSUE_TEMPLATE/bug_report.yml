@@ -1,0 +1,52 @@
+name: Relatar um bug
+description: Algo se comportou de forma errada (resultado errado, travamento, erro inesperado)
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por relatar! Um bom relato tem **o SQL que reproduz** e **o que você esperava**.
+        Se for um travamento, a saída de `.locks` e `.stats` ajuda muito.
+  - type: textarea
+    id: sql
+    attributes:
+      label: Como reproduzir
+      description: O menor SQL (ou código Rust) que mostra o problema.
+      render: sql
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que você esperava
+    validations:
+      required: true
+  - type: textarea
+    id: obtido
+    attributes:
+      label: O que aconteceu
+      description: Mensagem de erro, saída ou descrição do travamento.
+    validations:
+      required: true
+  - type: input
+    id: versao
+    attributes:
+      label: Versão / commit
+      placeholder: "ex.: v0.1.0 ou a saída de `git rev-parse --short HEAD`"
+  - type: input
+    id: ambiente
+    attributes:
+      label: Sistema e versão do Rust
+      placeholder: "ex.: Windows 11, rustc 1.88.0"
+  - type: dropdown
+    id: concorrencia
+    attributes:
+      label: Envolve várias threads/sessões ao mesmo tempo?
+      options: ["Não", "Sim", "Não sei"]
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Antes de enviar
+      options:
+        - label: Procurei por uma issue parecida
+        - label: Conferi o [catálogo de erros](https://github.com/snake-outerheaven/rustysql/blob/master/docs/reference/errors.md)

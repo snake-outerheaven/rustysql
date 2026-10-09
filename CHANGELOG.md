@@ -8,6 +8,8 @@ migração** (veja o *magic* em [`storage-formats.md`](docs/reference/storage-fo
 
 ## [Não lançado]
 
+## [0.1.0] - 2026-10-09
+
 ### Adicionado
 
 #### Armazenamento e durabilidade
@@ -41,6 +43,13 @@ migração** (veja o *magic* em [`storage-formats.md`](docs/reference/storage-fo
   ([ADR-0012](docs/adr/0012-controle-de-admissao-com-prioridade.md)).
 - API de sessões: `Database` (`Clone`, `Send + Sync`) e `Session`.
 - DDL em autocommit, publicado no commit ([ADR-0014](docs/adr/0014-ddl-em-autocommit-e-publicacao-no-commit.md)).
+
+#### Comunidade e infraestrutura
+- **CI** no GitHub Actions: testes em Linux, Windows e macOS; `clippy` e `rustdoc` sem avisos; verificação
+  da **versão mínima do Rust (1.88)**; links da documentação; e um **estresse semanal** de concorrência.
+- Modelos de *issue* (bug e funcionalidade), de *pull request*, `CODE_OF_CONDUCT.md`, `SECURITY.md` e
+  Dependabot.
+- `rust-version = "1.88"` e metadados do pacote (`keywords`, `categories`) no `Cargo.toml`.
 
 #### Ferramentas e documentação
 - REPL com `.stats`, `.locks`, `.schema`, modo script com tempos por comando.
@@ -88,3 +97,6 @@ migração** (veja o *magic* em [`storage-formats.md`](docs/reference/storage-fo
 
 - Pager de páginas de 4 KB, heap em *slotted pages*, B+tree **sem concorrência** para a chave primária,
   parser SQL (`CREATE TABLE`, `INSERT`, `SELECT`, `UPDATE`, `DELETE`) e REPL.
+
+[Não lançado]: https://github.com/snake-outerheaven/rustysql/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/snake-outerheaven/rustysql/releases/tag/v0.1.0
