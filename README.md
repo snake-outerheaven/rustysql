@@ -10,6 +10,12 @@ cargo test                               # 52 testes (inclui estresse de concorr
 cargo doc --no-deps --open               # referência de API (todo item público é documentado)
 ```
 
+## Licença
+
+[MIT](LICENSE): uso, cópia, modificação e distribuição livres, inclusive **comerciais**, desde que o aviso de
+copyright seja mantido. O software é fornecido **sem garantia**: é um projeto de estudo, não o use para dados que
+importam sem avaliar por conta própria ([limites conhecidos](#limites-conhecidos)).
+
 ## Documentação
 
 Tudo está em [`docs/`](docs/README.md), com modelos profissionais para cada finalidade:

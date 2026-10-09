@@ -52,6 +52,10 @@ migração** (veja o *magic* em [`storage-formats.md`](docs/reference/storage-fo
 - **52 testes**: 1 unitário, 44 de integração (inclui estresse de concorrência da B-tree, transferências
   bancárias com deadlock, recuperação de quedas) e 7 exemplos de rustdoc.
 
+### Licença
+- O projeto passa a ser distribuído sob a **licença MIT** ([`LICENSE`](LICENSE)); o `Cargo.toml` declara
+  `license = "MIT"`.
+
 ### Alterado
 
 - O armazenamento passou a usar **buffer pool** em vez de acesso direto ao arquivo (`pager`).

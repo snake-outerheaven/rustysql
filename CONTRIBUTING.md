@@ -93,5 +93,5 @@ um projeto de estudo.
 
 ## Licença
 
-O repositório **ainda não declara uma licença**. Combine com o mantenedor antes de enviar uma contribuição
-grande, para que fique claro sob quais termos ela será distribuída.
+O projeto é distribuído sob a [licença MIT](LICENSE). Ao enviar uma contribuição, você concorda que ela
+seja licenciada sob os mesmos termos (o que permite, entre outros usos, o uso comercial).
