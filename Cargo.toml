@@ -9,6 +9,7 @@ keywords = ["database", "sql", "btree", "wal", "educational"]
 categories = ["database-implementations"]
 description = "Banco de dados relacional embutido, escrito em Rust para estudo"
 repository = "https://github.com/snake-outerheaven/rustysql"
+exclude = ["studio/", ".github/", "scripts/"]
 
 [dependencies]
 parking_lot = { version = "0.12.5", features = ["arc_lock", "send_guard"] }

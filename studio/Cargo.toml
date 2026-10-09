@@ -1,0 +1,24 @@
+[package]
+name = "rustysql-studio"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT"
+description = "Aplicativo desktop (Tauri) de exemplo para gerenciar um banco rustysql"
+publish = false
+
+# crate independente: não faz parte do pacote `rustysql` nem do CI da biblioteca
+[workspace]
+
+[dependencies]
+rustysql = { path = ".." }
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"

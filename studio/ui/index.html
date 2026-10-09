@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>rustysql studio</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <aside id="side">
+    <div class="brand"><span class="logo">⛁</span> rustysql <b>studio</b></div>
+
+    <section>
+      <label class="lbl" for="path">Arquivo do banco</label>
+      <input id="path" type="text" value="rustysql-studio.db" spellcheck="false">
+      <div class="row">
+        <button id="btn-open" class="primary">Abrir / criar</button>
+        <button id="btn-close" disabled>Fechar</button>
+      </div>
+      <div id="status" class="muted">nenhum banco aberto</div>
+    </section>
+
+    <section id="tables-sec" hidden>
+      <div class="lbl">Tabelas <button id="btn-refresh" class="icon" title="Atualizar">⟳</button></div>
+      <ul id="tables"></ul>
+      <button id="btn-demo" class="block">Carregar dados de demonstração</button>
+      <button id="btn-ckpt" class="block">Checkpoint</button>
+    </section>
+  </aside>
+
+  <main>
+    <nav id="tabs">
+      <button data-tab="console" class="active">Console SQL</button>
+      <button data-tab="data">Dados</button>
+      <button data-tab="monitor">Monitor</button>
+      <button data-tab="lab">Laboratório</button>
+    </nav>
+
+    <section id="tab-console" class="tab active">
+      <textarea id="sql" spellcheck="false" placeholder="Escreva SQL aqui. Ctrl+Enter executa.&#10;Ex.: SELECT * FROM produtos WHERE id = 7"></textarea>
+      <div class="bar">
+        <button id="btn-run" class="primary">▶ Executar <kbd>Ctrl+Enter</kbd></button>
+        <button id="btn-explain">Plano (EXPLAIN)</button>
+        <label>Prioridade
+          <select id="prio"><option>low</option><option selected>normal</option><option>high</option></select>
+        </label>
+        <span id="txn" class="badge" hidden>transação aberta</span>
+        <span id="timing" class="muted"></span>
+      </div>
+      <div id="out"></div>
+    </section>
+
+    <section id="tab-data" class="tab">
+      <div class="bar">
+        <label>Tabela <select id="data-table"></select></label>
+        <button id="pg-prev">‹</button>
+        <span id="pg-info" class="muted"></span>
+        <button id="pg-next">›</button>
+      </div>
+      <div id="grid"></div>
+    </section>
+
+    <section id="tab-monitor" class="tab">
+      <p class="muted">Estado interno lido da biblioteca, a cada segundo (<code>dirty_pages</code>, <code>wal_bytes</code>, <code>scheduler_stats</code>, <code>lock_snapshot</code>).</p>
+      <div id="cards"></div>
+      <h3>Locks de tabela</h3>
+      <pre id="locks">—</pre>
+    </section>
+
+    <section id="tab-lab" class="tab">
+      <p>Várias threads fazem <b>transferências entre contas</b> em transações concorrentes (2PL, deadlocks tratados com nova tentativa). O primeiro trabalhador roda em prioridade <b>ALTA</b>, o último em <b>BAIXA</b>. No fim, a soma dos saldos precisa continuar igual.</p>
+      <div class="bar">
+        <label>Trabalhadores <input id="lab-w" type="number" min="2" max="16" value="6"></label>
+        <label>Transferências cada <input id="lab-n" type="number" min="1" max="500" value="100"></label>
+        <button id="btn-lab" class="primary">Rodar</button>
+      </div>
+      <div id="lab-out"></div>
+    </section>
+  </main>
+
+  <div id="toast" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>

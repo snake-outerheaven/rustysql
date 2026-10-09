@@ -64,6 +64,17 @@ jobs:
           python-version: "3.x"
       - run: python scripts/check_docs.py
 
+  studio:
+    name: app desktop (studio)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: studio
+      - run: cargo clippy --manifest-path studio/Cargo.toml -- -D warnings
+
   stress:
     name: estresse de concorrência (release, 10 rodadas)
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

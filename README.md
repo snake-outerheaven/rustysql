@@ -100,6 +100,14 @@ assert_eq!(rows, vec![vec![Value::Text("bia".into())], vec![Value::Text("caio".i
 Uma `Session` por thread dá transações isoladas (`BEGIN`/`COMMIT`), com retry em deadlock:
 veja o [guia da API](docs/guides/embedding-api.md).
 
+### App desktop de exemplo
+
+[`studio/`](studio/README.md) é um aplicativo **Tauri 2** que usa a biblioteca como qualquer cliente faria: console SQL com transações abertas, navegador de dados, monitor ao vivo (WAL, páginas sujas, fila de prioridade, locks) e um laboratório de transferências concorrentes que confere a integridade no fim. Frontend em HTML/JS puro, sem Node.
+
+```bash
+cd studio && cargo run --release
+```
+
 ## Aprenda lendo (um roteiro)
 
 Uma ordem que ensina bem, de baixo para cima:

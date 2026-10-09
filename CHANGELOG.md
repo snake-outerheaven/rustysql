@@ -8,6 +8,10 @@ migração** (veja o *magic* em [`storage-formats.md`](docs/reference/storage-fo
 
 ## [Não lançado]
 
+### Adicionado
+- **`studio/`**: aplicativo desktop de exemplo (Tauri 2) para gerenciar um banco: console SQL, navegador
+  de dados, monitor ao vivo e laboratório de concorrência. Crate independente, fora do pacote publicado.
+
 ## [0.1.0] - 2026-10-09
 
 ### Adicionado
