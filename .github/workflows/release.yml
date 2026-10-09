@@ -1,0 +1,108 @@
+name: Release
+
+# Publica os executáveis ao criar uma tag vX.Y.Z (ou manualmente, informando uma tag existente).
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag do release (ex.: v0.1.1); o código é compilado a partir dela"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  release:
+    name: criar release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - name: notas do CHANGELOG
+        run: |
+          ver="${TAG#v}"
+          awk -v v="$ver" '
+            $0 ~ "^## \\[" v "\\]" { on=1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "Release $TAG" > notes.md
+          echo "" >> notes.md
+          echo "Baixe o executável do seu sistema abaixo. Os arquivos \`.sha256\` permitem conferir a integridade." >> notes.md
+      - name: criar (se ainda não existir)
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 \
+            || gh release create "$TAG" --title "rustysql ${TAG#v}" --notes-file notes.md --verify-tag
+
+  cli:
+    name: terminal (${{ matrix.name }})
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, name: linux-x86_64, exe: rustysql, pack: tar }
+          - { os: windows-latest, name: windows-x86_64, exe: rustysql.exe, pack: zip }
+          - { os: macos-latest, name: macos-arm64, exe: rustysql, pack: tar }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release --locked
+      - name: empacotar e enviar
+        run: |
+          dir="rustysql-${TAG}-${{ matrix.name }}"
+          mkdir "$dir"
+          cp "target/release/${{ matrix.exe }}" LICENSE README.md demo.sql "$dir/"
+          if [ "${{ matrix.pack }}" = zip ]; then
+            7z a "$dir.zip" "$dir" >/dev/null; asset="$dir.zip"
+          else
+            tar czf "$dir.tar.gz" "$dir"; asset="$dir.tar.gz"
+          fi
+          python -c "import hashlib,sys;p=sys.argv[1];print(hashlib.sha256(open(p,'rb').read()).hexdigest()+'  '+p)" "$asset" > "$asset.sha256"
+          gh release upload "$TAG" "$asset" "$asset.sha256" --clobber
+
+  studio:
+    name: app desktop (windows-x86_64)
+    needs: release
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - name: existe studio/ nesta tag?
+        id: has
+        run: |
+          if [ -f studio/Cargo.toml ]; then echo "yes=true" >> "$GITHUB_OUTPUT"; fi
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.has.outputs.yes
+      - uses: Swatinem/rust-cache@v2
+        if: steps.has.outputs.yes
+        with:
+          workspaces: studio
+      - name: compilar e enviar
+        if: steps.has.outputs.yes
+        run: |
+          cargo build --release --locked --manifest-path studio/Cargo.toml
+          dir="rustysql-studio-${TAG}-windows-x86_64"
+          mkdir "$dir"
+          cp studio/target/release/rustysql-studio.exe LICENSE studio/README.md "$dir/"
+          7z a "$dir.zip" "$dir" >/dev/null
+          python -c "import hashlib,sys;p=sys.argv[1];print(hashlib.sha256(open(p,'rb').read()).hexdigest()+'  '+p)" "$dir.zip" > "$dir.zip.sha256"
+          gh release upload "$TAG" "$dir.zip" "$dir.zip.sha256" --clobber

@@ -71,7 +71,9 @@ rustysql> SET PRIORITY HIGH;            -- esta sessão passa na frente na fila 
 
 ## Início rápido
 
-Requer **Rust 1.88+** ([rustup.rs](https://rustup.rs)).
+**Sem compilar:** baixe o executável (terminal para Linux, Windows e macOS, e o app desktop para Windows) na [página de releases](https://github.com/snake-outerheaven/rustysql/releases/latest), descompacte e rode `rustysql meu.db`.
+
+**Compilando** (requer **Rust 1.88+** ([rustup.rs](https://rustup.rs))):
 
 ```bash
 git clone https://github.com/snake-outerheaven/rustysql.git && cd rustysql

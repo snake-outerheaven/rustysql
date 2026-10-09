@@ -8,7 +8,11 @@ migração** (veja o *magic* em [`storage-formats.md`](docs/reference/storage-fo
 
 ## [Não lançado]
 
+## [0.1.1] - 2026-10-09
+
 ### Adicionado
+- **Executáveis nos releases**: workflow `release.yml` compila e anexa, a cada tag `v*`, o terminal
+  (Linux x86_64, Windows x86_64, macOS arm64) e o app desktop (Windows), com somas SHA-256.
 - **`studio/`**: aplicativo desktop de exemplo (Tauri 2) para gerenciar um banco: console SQL, navegador
   de dados, monitor ao vivo e laboratório de concorrência. Crate independente, fora do pacote publicado.
 
@@ -102,5 +106,6 @@ migração** (veja o *magic* em [`storage-formats.md`](docs/reference/storage-fo
 - Pager de páginas de 4 KB, heap em *slotted pages*, B+tree **sem concorrência** para a chave primária,
   parser SQL (`CREATE TABLE`, `INSERT`, `SELECT`, `UPDATE`, `DELETE`) e REPL.
 
-[Não lançado]: https://github.com/snake-outerheaven/rustysql/compare/v0.1.0...HEAD
+[Não lançado]: https://github.com/snake-outerheaven/rustysql/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/snake-outerheaven/rustysql/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/snake-outerheaven/rustysql/releases/tag/v0.1.0
